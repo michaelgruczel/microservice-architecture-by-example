@@ -112,4 +112,45 @@ URLs are:
 
 ## some principles of microservice architectures and how they are applied in the several environments
  
-> TODO 
+Some of this principles you will find in the 12 factor (https://12factor.net/) apps, 
+but not all factors are crucial for microservices (even if I agree with all 12 principles)
+and my list maybe differs a little bit. 
+
+### resilience to traffic
+
+> TODO scaling
+
+### resilience to downtimes
+
+> TODO example database, circuit breaker
+
+### resilience to infrastructure changes
+
+> TODO service discovery
+
+### Be stateless 
+
+> TODO example redis for session, loadbalancer round robin
+
+### always on
+
+> TODO example rolling updates, config changes
+> TODO example config
+
+### Treat logs as event streams
+
+> TODO
+
+## appendix
+
+redis:
+
+    $ vagrant up
+    $ vagrant ssh
+    $ redis-cli ping
+    PONG
+    
+https://github.com/steveswinsburg/mysql-vagrant/blob/master/install.sh
+
+    
+
