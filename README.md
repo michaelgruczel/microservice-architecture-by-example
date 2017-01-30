@@ -59,6 +59,24 @@ see desciption here:
  
 https://kubernetes.io/docs/getting-started-guides/binary_release/#download-kubernetes-and-automatically-set-up-a-default-cluster
  
+### kubernetes cluster on aws
+
+If you are on windows, I would recommend to create a linux vm and execute the commands in
+the vm:
+
+    $ mkdir kubernetes-test-vm
+    $ cd kubernetes-test-vm
+    $ vagrant init hashicorp/precise64
+    $ vagrant up 
+    $ vagrant ssh
+    $ export KUBERNETES_PROVIDER=aws; wget -q -O - https://get.k8s.io | bash
+    $ cluster/kube-up.sh
+    // you might need to configure your aws credentials 
+    $ cluster/kube-down.sh
+
+    
+see https://kubernetes.io/docs/getting-started-guides/aws/ for more details    
+ 
 ### local pivotal cloud foundry
  
 get a PCF image/appliance:
