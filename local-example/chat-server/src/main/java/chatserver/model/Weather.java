@@ -1,4 +1,4 @@
-package hello;
+package chatserver.model;
 
 public class Weather {
 
