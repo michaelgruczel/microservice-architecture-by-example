@@ -15,9 +15,9 @@ public class WeatherController {
         } else if(place.equalsIgnoreCase("springfield")) {
             return new Weather("yellow skyline, strange");
         } else if(!place.isEmpty()) {
-            return new Weather("that town is unknown, we know hamburg and springfield");
+            return new Weather("no weather data for that town, we know hamburg and springfield");
         }
-        return new Weather("probably fine, if you want to know the weather of a specific town add the town name");
+        return new Weather("weather service v0.4.2, please add your town to request");
     }
 
 }

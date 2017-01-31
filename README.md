@@ -156,9 +156,9 @@ So my list differs for this demo.
 
 > TODO scaling
 
-### resilience to downtimes
+### resilience to dependencies
 
-> TODO example database, circuit breaker
+> TODO example circuit breaker
 
 ### resilience to infrastructure changes
 
@@ -185,24 +185,27 @@ I recommend to use 5 shells.
 
 shell 1 - let's start a eureka instance
 
+    $ cd local-example
     $ cd eureka
     $ gradlew bootRun
-    // see http://localhost:8761/
+    // check the ui on http://localhost:8761/
 
 shell 2 - let's start the weather service
 
+    $ cd local-example
     $ cd weather-server
     $ gradlew bootRun
     // you should now see the instance in eureka
-    // you can now curl weather data by curl http:/...../weather?place=springfield
+    // you can now curl weather data by curl http://localhost:8090/weather?place=springfield
     
 shell 3 - let's start the concert service
 
+    $ cd local-example
     $ cd concert-server
     $ gradlew bootRun
     // you should now see the instance in eureka
     // and the concert server will find the weather service by the service discovery
-    // you can now curl concert data by curl http:/...../concerts?place=springfield
+    // you can now curl concert data by curl http://localhost:8100/concerts?place=springfield
         
 shell 4 - let' start a redis server for the chat server:
 
@@ -211,6 +214,7 @@ shell 4 - let' start a redis server for the chat server:
     
 shell 5 - let' start one instance of the chat server:
 
+    $ cd local-example
     $ cd chat-server
     $ gradlew bootRun
     // you should now see the instance in eureka
@@ -221,13 +225,85 @@ shell 5 - let' start one instance of the chat server:
 
 Let's play
 
-> TODO stop and restart the weather server
-> TODO start a second instance of the weather server
-> TODO stop and restart the concert server
-> TODO stop the concert server and start a faulty version of it
+sessions:
+
+the first thing to realize is that the sessions of the chat server are stored in a redis
+database, all we needed for this was a single small class HttpSessionConfig:
+
+    @EnableRedisHttpSession
+    public class HttpSessionConfig {
+    }
+
+and a dependency:
+
+    compile	"org.springframework.boot:spring-boot-starter-data-redis:1.4.3.RELEASE"
+	
+by default it expects a redis to reach at localhost. This can be adapted of course,
+but we will see later (PCF example or kubernetes how a redis database can be linked.
+Storing sessions in a database makes webservices stateless. For rest services which need
+authorisation I recommend oauth2 with JWT.
+For the local example that's fine. The messages are store in redis as well.
+
+circuit breaker:
+
+Let's now login in to http://localhost:8080 with user homer and password beer.
+Let's now retrieve concert information by submitting "/concerts springfield" in the message box.
+This information is retrieved from the concert service, who retireves it from the weather server.
+In case the weather server is not reachbale, hystrix will get to a fallback method.
+The same is true if the response is not valied (not a 200 http code).
+So stop the weather server and see what happens if you enter "/concerts springfield"
+The circuit breaker in the concert service looks like this:
+
+    @RequestMapping("/concerts")
+    @HystrixCommand(fallbackMethod = "responseWithoutWeather")
+    public ConcertInfo weather(@RequestParam(value="place", defaultValue="") String place) {
+
+            String weatherData = "";
+            if(!place.isEmpty()) {
+                Weather weather = restTemplate.getForObject("http://weather-service/weather?place=" + place, Weather.class);
+                weatherData = " - Weather:" + weather.getContent();
+            }
+            return new ConcertInfo(fakeConcertData(place) + weatherData);
+    }
+
+    public ConcertInfo responseWithoutWeather(@RequestParam(value="place", defaultValue="") String place) {
+        return new ConcertInfo(fakeConcertData(place) + " - Waether: no data at the moment");
+    }
+
+after starting the weather service again, the weather data is available again.
+
+service discovery:
+
+Instead of defining the urls directly, we use eureka as service discovery.
+The services have a name, and an embedded loadbalancing (ribbon) balances between all
+instances of the given type.
+
+
+    public class IndexController {
+
+	    @Autowired
+	    private DiscoveryClient discoveryClient;
+
+	    @LoadBalanced
+	    @Bean
+	    RestTemplate restTemplate(){
+		    return new RestTemplate();
+	    }
+
+      @Autowired
+	    RestTemplate restTemplate;
+      ...
+	    private void retrieveWeatherData(@ModelAttribute Message message) {
+
+		    //not http://localhost:8090/weather?place=... instead
+		    Weather weather = restTemplate.getForObject("http://weather-service/weather?place=" + message.getContent().split(" ")[1], Weather.class);
+		    message.setContent(message.getContent() + " - Weather:" + weather.getContent());
+	    }
+	    ..
+	  }  
 
 For the local test, we will stop here, if you want to see examples
-of scaling the chat-service, or logging as stream, let's do it with PCF
+of scaling the chat-service, or logging as stream, let's do it with PCF because it's just simpler
 
 ### Let's run it locally in PCF
 

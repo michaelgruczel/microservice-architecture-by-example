@@ -26,6 +26,11 @@ targetCompatibility = 1.8
 
 dependencies {
     compile("org.springframework.boot:spring-boot-starter-web")
+
+    compile 'org.springframework.cloud:spring-cloud-starter-eureka-server:1.2.3.RELEASE'
+    compile 'org.springframework.cloud:spring-cloud-netflix:1.2.3.RELEASE'
+    compile 'org.springframework.cloud:spring-cloud-starter-hystrix:1.2.3.RELEASE'
+
     testCompile('org.springframework.boot:spring-boot-starter-test')
     testCompile('com.jayway.jsonpath:json-path')
 }

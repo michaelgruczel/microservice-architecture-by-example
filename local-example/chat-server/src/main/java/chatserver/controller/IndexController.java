@@ -1,27 +1,15 @@
-/*
- * Copyright 2014-2016 the original author or authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package chatserver.controller;
 
-import chatserver.config.MessageRepositoryConfig;
 import chatserver.model.ConcertInfo;
 import chatserver.model.Message;
 import chatserver.model.MessageRepository;
 import chatserver.model.Weather;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixProperty;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.client.discovery.DiscoveryClient;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
+import org.springframework.context.annotation.Bean;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
@@ -38,11 +26,21 @@ import java.util.List;
 public class IndexController {
 
 	private MessageRepository repository;
-	private RestTemplate restTemplate;
 
-    public IndexController(MessageRepository repository, RestTemplate restTemplate) {
+	@Autowired
+	private DiscoveryClient discoveryClient;
+
+	@LoadBalanced
+	@Bean
+	RestTemplate restTemplate(){
+		return new RestTemplate();
+	}
+
+	@Autowired
+	RestTemplate restTemplate;
+
+	public IndexController(MessageRepository repository) {
 		this.repository = repository;
-		this.restTemplate = restTemplate;
 	}
 
 	@RequestMapping("/")
@@ -58,30 +56,49 @@ public class IndexController {
 	}
 
 	@RequestMapping(path = "/message", method = RequestMethod.POST)
+	@HystrixCommand(fallbackMethod = "dataNotAvailable", commandProperties = {
+        @HystrixProperty(name = "execution.isolation.strategy", value = "SEMAPHORE"),
+        @HystrixProperty(name = "execution.timeout.enabled", value = "false")})
 	public String addMessage(Model model, @ModelAttribute Message message) {
 
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		String currentPrincipalName = authentication.getName();
 		message.setAuthor(currentPrincipalName);
-		//System.out.println(message.getAuthor());
+		System.out.println("Store" + message.getContent() + " from " + message.getAuthor());
 
 		if(message.getContent().startsWith("/weather") && message.getContent().split(" ").length > 1) {
-			try {
-				Weather weather = restTemplate.getForObject("http://localhost:8090/weather?place=" + message.getContent().split(" ")[1], Weather.class);
-				message.setContent(message.getContent() + " - Weather:" + weather.getContent());
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			retrieveWeatherData(message);
 		} else if(message.getContent().startsWith("/concerts") && message.getContent().split(" ").length > 1) {
-			try {
-				ConcertInfo concertInfo = restTemplate.getForObject("http://localhost:8100/concerts?place=" + message.getContent().split(" ")[1], ConcertInfo.class);
-				message.setContent(message.getContent() + " - Concerts:" + concertInfo.getContent());
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			retrieveConcertData(message);
 		}
-
+		System.out.println("Store" + message.getContent() + " from " + message.getAuthor());
+		
 		repository.save(message);
+		return "redirect:/";
+	}
+
+	private void retrieveWeatherData(@ModelAttribute Message message) {
+
+		//Weather weather = restTemplate.getForObject("http://localhost:8090/weather?place=" + message.getContent().split(" ")[1], Weather.class);
+		Weather weather = restTemplate.getForObject("http://weather-service/weather?place=" + message.getContent().split(" ")[1], Weather.class);
+		message.setContent(message.getContent() + " - Weather:" + weather.getContent());
+	}
+
+  private void retrieveConcertData(@ModelAttribute Message message) {
+
+		//ConcertInfo concertInfo = restTemplate.getForObject("http://localhost:8100/concerts?place=" + message.getContent().split(" ")[1], ConcertInfo.class);
+		ConcertInfo concertInfo = restTemplate.getForObject("http://concerts-service/concerts?place=" + message.getContent().split(" ")[1], ConcertInfo.class);
+		message.setContent(message.getContent() + " - Concerts:" + concertInfo.getContent());
+	}
+
+	public String dataNotAvailable(Model model, @ModelAttribute Message message) {
+		//Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		//String currentPrincipalName = authentication.getName();
+		//message.setAuthor(currentPrincipalName);
+		//message.setContent(message.getContent() + " - currently no data available");
+		//System.out.println("Store" + message.getContent() + " from " + message.getAuthor());
+    //repository.save(message);
+    System.out.println("fallback");
 		return "redirect:/";
 	}
 

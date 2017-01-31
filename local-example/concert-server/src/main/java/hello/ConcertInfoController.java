@@ -1,5 +1,10 @@
 package hello;
 
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.client.discovery.DiscoveryClient;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
+import org.springframework.context.annotation.Bean;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -9,41 +14,44 @@ import org.springframework.web.client.RestTemplate;
 @RestController
 public class ConcertInfoController {
 
-    private RestTemplate restTemplate;
+    @Autowired
+    private DiscoveryClient discoveryClient;
 
-    public ConcertInfoController(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
+    @LoadBalanced
+    @Bean
+    RestTemplate restTemplate(){
+        return new RestTemplate();
     }
 
+    @Autowired
+    RestTemplate restTemplate;
+
     @RequestMapping("/concerts")
+    @HystrixCommand(fallbackMethod = "responseWithoutWeather")
     public ConcertInfo weather(@RequestParam(value="place", defaultValue="") String place) {
+
+            String weatherData = "";
+            if(!place.isEmpty()) {
+                //Weather weather = restTemplate.getForObject("http://localhost:8090/weather?place=" + place, Weather.class);
+                Weather weather = restTemplate.getForObject("http://weather-service/weather?place=" + place, Weather.class);
+                weatherData = " - Weather:" + weather.getContent();
+            }
+            return new ConcertInfo(fakeConcertData(place) + weatherData);
+    }
+
+    public ConcertInfo responseWithoutWeather(@RequestParam(value="place", defaultValue="") String place) {
+        return new ConcertInfo(fakeConcertData(place) + " - Weather: no data at the moment");
+    }
+
+    private String fakeConcertData(String place) {
         if(place.equalsIgnoreCase("hamburg")) {
-
-            ConcertInfo result = new ConcertInfo("There is always cool stuff in Hamburg");
-
-            try {
-                Weather weather = restTemplate.getForObject("http://localhost:8090/weather?place=" + place, Weather.class);
-                result.setContent(result.getContent() + " - Weather:" + weather.getContent());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return result;
-
+            return "There is always cool stuff in Hamburg";
         } else if(place.equalsIgnoreCase("springfield")) {
-            ConcertInfo result = new ConcertInfo("Clowns band on central park");
-
-            try {
-                Weather weather = restTemplate.getForObject("http://localhost:8090/weather?place=" + place, Weather.class);
-                result.setContent(result.getContent() + " - Weather:" + weather.getContent());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return result;
-
+            return "Clowns band on central park";
         } else if(!place.isEmpty()) {
-            return new ConcertInfo("that town is unknown, we know hamburg and springfield");
+            return "no concerts known in that town, but something is happening in hamburg and springfield";
         }
-        return new ConcertInfo("In hamburg is always cool stuff, in springfield, The clowns band plays in central park");
+        return "Concert Help Service V 0.1, please use /concerts YOURTOWN";
     }
 
 }
