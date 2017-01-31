@@ -126,13 +126,31 @@ URLs are:
 
 ## demo applications
 
+For this demo we have 3 applications:
+
+* Weather service returns weather data for a town
+* Concert service returns concerts which are available in a town, 
+this service retrieves additional wether data for that town
+* Chat service, This is an authorized service (session) which allows
+logged in people to send message. Additionally they can ask for wether data
+or concert data which is then retrieved from the other services
+
+So the general setup will look lilke this:
+
 > TODO
+
+But we want to follow the principles of cloud native apps, 
+so the real setup will look like this:
+
+> TODO
+
+Go through the principles to understant the adaptions and advantages of it 
 
 ## some principles of microservice architectures and how they are applied in the several environments
  
 Some of this principles you will find in the 12 factor (https://12factor.net/) apps, 
-but not all factors are crucial for microservices (even if I agree with all 12 principles)
-and my list maybe differs a little bit. 
+but not all factors are crucial for microservices and for this showcase (even if I agree with all 12 principles).
+So my list differs for this demo. 
 
 ### resilience to traffic
 
@@ -159,6 +177,74 @@ and my list maybe differs a little bit.
 
 > TODO
 
+### Let's run it locally
+
+> TODO not implemented yet
+
+I recommend to use 5 shells.
+
+shell 1 - let's start a eureka instance
+
+    $ cd eureka
+    $ gradlew bootRun
+    // see http://localhost:8761/
+
+shell 2 - let's start the weather service
+
+    $ cd weather-server
+    $ gradlew bootRun
+    // you should now see the instance in eureka
+    // you can now curl weather data by curl http:/...../weather?place=springfield
+    
+shell 3 - let's start the concert service
+
+    $ cd concert-server
+    $ gradlew bootRun
+    // you should now see the instance in eureka
+    // and the concert server will find the weather service by the service discovery
+    // you can now curl concert data by curl http:/...../concerts?place=springfield
+        
+shell 4 - let' start a redis server for the chat server:
+
+    $ cd redis
+    $ vagrant up
+    
+shell 5 - let' start one instance of the chat server:
+
+    $ cd chat-server
+    $ gradlew bootRun
+    // you should now see the instance in eureka
+    // and the chat server will find the weather service and the concert service
+    // by the service discovery (eureka)
+    // you can now login by http://localhost:8080 with the credentials
+    // (user/password) homer/beer, march/blue, bart/eatmyshorts
+
+Let's play
+
+> TODO stop and restart the weather server
+> TODO start a second instance of the weather server
+> TODO stop and restart the concert server
+> TODO stop the concert server and start a faulty version of it
+
+For the local test, we will stop here, if you want to see examples
+of scaling the chat-service, or logging as stream, let's do it with PCF
+
+### Let's run it locally in PCF
+
+> TODO not implemented yet
+
+### Let's run it on kubernetes
+
+> TODO not implemented yet
+
+### Let's run it on docker swarm
+
+> TODO not implemented yet
+
+### Let's run it on mesos
+
+> TODO not implemented yet
+
 ## appendix
 
 redis:
@@ -170,5 +256,4 @@ redis:
     
 https://github.com/steveswinsburg/mysql-vagrant/blob/master/install.sh
 
-    
 
