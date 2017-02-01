@@ -1,10 +1,11 @@
-# microservice-architecture-by-example
+# cloud native by example
 
-> Warning: this is not yet usable
-
-## Foreword
+Foreword:
  
- TODO
+This demo/showcase should show how some cloud natives principles can be applied in java with several
+PAAS and CAAS solutions. Don't take it to serious, it's just for me to learn.
+
+---
  
 ## pre-requisites
  
@@ -14,12 +15,16 @@
  * jdk 8
  * vagrant
  * git client
+
+---
  
-## setups
+## setups for using PCF, kubernetes, mesos, ...
  
  This installations are optional, but if you want to test the things hands-on you can find
  installations here how to install it.
  It's mainly based on local virtual machines, means you can delete it afterwards
+ I will try to offer a local installation and a remote one, because depending on you
+ memory and OS i can be difficult to start things locally
  
 ### local docker swarm cluster
  
@@ -124,6 +129,8 @@ URLs are:
 * Marathon web UI on: http://172.31.3.11:8080
 * Chronos web UI on: http://172.31.3.11:8081    
 
+---
+
 ## demo applications
 
 For this demo we have 3 applications:
@@ -135,51 +142,55 @@ this service retrieves additional wether data for that town
 logged in people to send message. Additionally they can ask for wether data
 or concert data which is then retrieved from the other services
 
-So the general setup will look lilke this:
-
-> TODO
-
+The upper diagram shows the general setup.
 But we want to follow the principles of cloud native apps, 
-so the real setup will look like this:
+so the real setup will look like the one at the bottom:
 
 > TODO
 
-Go through the principles to understant the adaptions and advantages of it 
+Go through the principles to understand the adaptions and advantages of it 
+
+---
 
 ## some principles of microservice architectures and how they are applied in the several environments
  
-Some of this principles you will find in the 12 factor (https://12factor.net/) apps, 
+This principles you will find in the 12 factor (https://12factor.net/) apps, 
 but not all factors are crucial for microservices and for this showcase (even if I agree with all 12 principles).
-So my list differs for this demo. 
+So my list is a subset.
 
-### resilience to traffic
+### Backing services
+Treat backing services as attached resources
 
-> TODO scaling
+This can be applied in Java by good design and by circuit breaker. One easy to use example library
+is netflix hystrix. An app show try as good as possible to survive even if some dependencies
+might fail temporarily. Enusure a gracefull degradation as possible. In this example the chat-server
+will continue to work if services like the concerts-service or the weather service fail. 
+Apart from that yozu should design your app in a way that additional resources (services) can be added
+and removed on the fly. This can be done by software side loadbalancing in combination with service discovery.
+In this example i will use eureka and ribbon for it.
 
-### resilience to dependencies
+### Processes
+Execute the app as one or more stateless processes
 
-> TODO example circuit breaker
+Sessions are dangerous, sticky sessions are the result. This makes rolling updates and scaling complex.
+In this example i will store session in a redis db.
 
-### resilience to infrastructure changes
+### Logs
+Treat logs as event streams
 
-> TODO service discovery
+Since you want the flexibility to scale up and down easily and to moive your services, you
+can not rely on the existence of files. Handling logs as streams is an easy solution.
+I will show it with PCF and ELK.
 
-### Be stateless 
+### Port binding
+Export services via port binding
 
-> TODO example redis for session, loadbalancer round robin
+Having dedicated ports might make sense if you only have a few services, but if you want to be flexible
+you should automate the handling of ports.
 
-### always on
+---
 
-> TODO example rolling updates, config changes
-> TODO example config
-
-### Treat logs as event streams
-
-> TODO
-
-### Let's run it locally
-
-> TODO not implemented yet
+## Let's run it locally
 
 I recommend to use 5 shells.
 
@@ -309,7 +320,9 @@ instances of the given type.
 For the local test, we will stop here, if you want to see examples
 of scaling the chat-service, or logging as stream, let's do it with PCF because it's just simpler
 
-### Let's run it in PCF 
+---
+
+## Let's run it in PCF 
 
 I assume that you run PCF locally, adapt the login command if you want to do it
 in a remote PCF installation. We use the apps in the pcf-example folder, which are
@@ -396,27 +409,21 @@ Let's do an update without downtime (this plugin might not work on windows)
     //http://localhost:5600/kibana/index.html#/dashboard/file/logstash.json
     //http://192.168.33.10:9200
 
-### Let's run it on kubernetes
+---
+
+## Let's run it on kubernetes
 
 > TODO not implemented yet
 
-### Let's run it on docker swarm
+---
+
+## Let's run it on docker swarm
 
 > TODO not implemented yet
 
-### Let's run it on mesos
+---
+
+## Let's run it on mesos
 
 > TODO not implemented yet
-
-## appendix
-
-redis:
-
-    $ vagrant up
-    $ vagrant ssh
-    $ redis-cli ping
-    PONG
-    
-https://github.com/steveswinsburg/mysql-vagrant/blob/master/install.sh
-
 
