@@ -1,0 +1,6 @@
+---
+applications:
+- name: weather-service
+  memory: 512MB
+  random-route: true
+  path: build/libs/weather-server-0.1.0.jar

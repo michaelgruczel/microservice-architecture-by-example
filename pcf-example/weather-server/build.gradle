@@ -1,0 +1,34 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:1.4.4.RELEASE")
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'org.springframework.boot'
+
+jar {
+    baseName = 'weather-server'
+    version =  '0.1.0'
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+    compile("org.springframework.boot:spring-boot-starter-web")
+    compile("org.springframework.boot:spring-boot-starter-actuator")
+    compile 'org.springframework.cloud:spring-cloud-starter-eureka-server:1.2.3.RELEASE'
+    testCompile('org.springframework.boot:spring-boot-starter-test')
+    testCompile('com.jayway.jsonpath:json-path')
+}
+

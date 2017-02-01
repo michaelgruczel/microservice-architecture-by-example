@@ -267,7 +267,7 @@ The circuit breaker in the concert service looks like this:
     }
 
     public ConcertInfo responseWithoutWeather(@RequestParam(value="place", defaultValue="") String place) {
-        return new ConcertInfo(fakeConcertData(place) + " - Waether: no data at the moment");
+        return new ConcertInfo(fakeConcertData(place) + " - Weather: no data at the moment");
     }
 
 after starting the weather service again, the weather data is available again.
@@ -290,24 +290,111 @@ instances of the given type.
 		    return new RestTemplate();
 	    }
 
-      @Autowired
+	    @Autowired
 	    RestTemplate restTemplate;
-      ...
+      
+	    ...
+	    
 	    private void retrieveWeatherData(@ModelAttribute Message message) {
 
 		    //not http://localhost:8090/weather?place=... instead
 		    Weather weather = restTemplate.getForObject("http://weather-service/weather?place=" + message.getContent().split(" ")[1], Weather.class);
 		    message.setContent(message.getContent() + " - Weather:" + weather.getContent());
 	    }
-	    ..
-	  }  
+	    
+	    ...
+	    
+    }  
 
 For the local test, we will stop here, if you want to see examples
 of scaling the chat-service, or logging as stream, let's do it with PCF because it's just simpler
 
-### Let's run it locally in PCF
+### Let's run it in PCF 
 
-> TODO not implemented yet
+I assume that you run PCF locally, adapt the login command if you want to do it
+in a remote PCF installation. We use the apps in the pcf-example folder, which are
+more or less identical. I've just added manifest files, and in some cases a property.
+
+    $ cf login -a https://api.local.pcfdev.io --skip-ssl-validation
+    // credentials: user/pass
+    $ cd pcf-example
+
+Let's start eureka and offer it to apps as service
+
+    $ cd eureka
+    $ gradlew build
+    $ cf push
+    // now reachable under http://eureka.local.pcfdev.io/
+    $ cf cups eureka-service -p '{"uri":"http://eureka:changeme@eureka.local.pcfdev.io"}'
+    // on windows it can be that you have to use strange parameter escaping, do it interactive if needed
+    // $ cf cups eureka-service -p uri
+    // you can see erros by cf logs weather-service --recent
+    // env by cf env weather-service
+
+    // $ cf cups eureka-service -p {"uri":"http://eureka:changeme@eureka.local.pcfdev.io\"}
+    
+ Let's start the weather service and the concert service and bind it to eureka   
+
+    $ cd..
+    $ cd weather-server
+    $ gradlew build
+    $ cf push
+    $ cf bind-service weather-service eureka-service
+    $ cf restage weather-service
+    $ cd..
+    $ cd concert-server
+    $ gradlew build
+    $ cf push
+    $ cf bind-service concerts-service eureka-service
+    $ cf restage concerts-service
+
+now the weather service runs in PCF and the concerts service as well. 
+You can call it (see url in PCF UI https://console.local.pcfdev.io). 
+PCF organizes the port binding, means everything is reachable on default http ports. 
+Same for concerts-service. It find the weather service as well
+
+     curl http://weather-service-.....local.pcfdev.io/weather?place=springfield
+     curl http://concerts-service-....local.pcfdev.io/concerts?place=springfield
+
+Lets scale the weather service     
+
+    $ cf apps
+    $ cf scale weather-service -i 2
+
+PCF is doing loadbalancing if the url is used.
+
+Let's use the Redis Database from the PCF marketplace and start 2 instances of the chat service against it and against eureka
+ 
+    $ cd..
+    $ cd chat-server
+    $ gradlew build
+    $ cf push
+    $ cf marketplace
+    $ cf create-service p-redis shared-vm redis
+    $ cf bind-service chat-service redis
+    $ cf bind-service chat-service eureka-service
+    $ cf set-env chat-service JBP_CONFIG_OPEN_JDK_JRE "[memory_calculator: {memory_sizes: {metaspace: '128m'}}]"
+    $ cf restage chat-service
+
+Let's do an update without downtime (this plugin might not work on windows)
+
+    $ cf add-plugin-repo CF-Community https://plugins.cloudfoundry.org
+    $ cf install-plugin blue-green-deploy -r CF-Community
+    $ cf blue-green-deploy chat-server
+    $ cf delete chat-server-old
+
+ lets now stream the logs out of PCF
+
+    $ cd..
+    $ cd..
+    $ cd ELK
+    $ vagrant up
+    $ cf cups logstash-drain -l syslog://192.168.33.10:5000
+    $ cf bind-service weather-service logstash-drain
+    $ cf restage weather-service   
+    //logs from weather service should now be reachable at 
+    //http://localhost:5600/kibana/index.html#/dashboard/file/logstash.json
+    //http://192.168.33.10:9200
 
 ### Let's run it on kubernetes
 
