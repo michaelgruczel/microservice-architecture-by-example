@@ -142,11 +142,14 @@ this service retrieves additional wether data for that town
 logged in people to send message. Additionally they can ask for wether data
 or concert data which is then retrieved from the other services
 
+![chat-server](https://raw.githubusercontent.com/michaelgruczel/microservice-architecture-by-example/master/images/chat-server.PNG "chat-server")
+
 The upper diagram shows the general setup.
 But we want to follow the principles of cloud native apps, 
 so the real setup will look like the one at the bottom:
 
-> TODO
+![architecture](https://raw.githubusercontent.com/michaelgruczel/microservice-architecture-by-example/master/images/app.png "architecture")
+
 
 Go through the principles to understand the adaptions and advantages of it 
 
@@ -408,6 +411,9 @@ Let's do an update without downtime (this plugin might not work on windows)
     //logs from weather service should now be reachable at 
     //http://localhost:5600/kibana/index.html#/dashboard/file/logstash.json
     //http://192.168.33.10:9200
+
+![elk](https://raw.githubusercontent.com/michaelgruczel/microservice-architecture-by-example/master/images/elk.PNG "elk")
+
 
 ---
 
