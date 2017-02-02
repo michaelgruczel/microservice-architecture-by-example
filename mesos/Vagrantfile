@@ -1,0 +1,54 @@
+Vagrant.configure("2") do |config|
+  
+  config.vm.provision "shell", inline: "echo Hello"
+
+  config.vm.define "mesosmaster" do |mesosmaster|
+    #mesosmaster.vm.box = "ubuntu/xenial64"
+    #mesosmaster.vm.box = "ubuntu/trusty64"
+    mesosmaster.vm.box = "centos/7"
+    mesosmaster.vm.network "private_network", ip: "192.168.33.11"
+    config.vm.network "forwarded_port", guest: 5050, host: 5050
+    config.vm.network "forwarded_port", guest: 8080, host: 8080
+    
+    mesosmaster.vm.provider "virtualbox" do |v|
+      v.name = "mesosmaster_vagrant"
+    end
+    mesosmaster.vm.synced_folder ".", "/vagrant", disabled: true
+    mesosmaster.vm.provision :shell, inline: "sudo rpm -Uvh http://repos.mesosphere.com/el/7/noarch/RPMS/mesosphere-el-repo-7-1.noarch.rpm"
+    mesosmaster.vm.provision :shell, inline: "sudo yum -y install mesos marathon"
+    mesosmaster.vm.provision :shell, inline: "sudo yum -y install mesosphere-zookeeper"
+    mesosmaster.vm.provision :shell, inline: "sudo yum install -y yum-utils"
+    mesosmaster.vm.provision :shell, inline: "sudo yum-config-manager --add-repo https://docs.docker.com/engine/installation/linux/repo_files/centos/docker.repo"
+    mesosmaster.vm.provision :shell, inline: "sudo yum makecache fast"
+    mesosmaster.vm.provision :shell, inline: "sudo yum -y install docker-engine"
+
+    mesosmaster.vm.provision :shell, inline: "sudo service docker start"
+    mesosmaster.vm.provision :shell, inline: "sudo service mesos-master start"
+    mesosmaster.vm.provision :shell, inline: "sudo service mesos-slave start"
+    mesosmaster.vm.provision :shell, inline: "sudo service marathon start"
+
+  end
+
+  #config.vm.define "mesosslave" do |mesosslave|
+  #  mesosslave.vm.box = "ubuntu/xenial64"
+  #  mesosslave.vm.network "private_network", ip: "192.168.33.12"
+  #  mesosslave.vm.provider "virtualbox" do |v|
+  #    v.name = "mesosslave_vagrant"
+  #  end
+  #  mesosslave.vm.provision :shell, inline: "wget http://www.apache.org/dist/mesos/1.1.0/mesos-1.1.0.tar.gz"
+  #  mesosslave.vm.provision :shell, inline: "tar -zxf mesos-1.1.0.tar.gz"
+  #  mesosslave.vm.provision :shell, inline: "sudo apt-get update"
+  #  mesosslave.vm.provision :shell, inline: "sudo apt-get install -y tar wget git"
+  #  mesosslave.vm.provision :shell, inline: "sudo apt-get install -y openjdk-8-jdk"
+  #  mesosslave.vm.provision :shell, inline: "sudo apt-get install -y autoconf libtool"
+  #  mesosslave.vm.provision :shell, inline: "sudo apt-get -y install build-essential python-dev libcurl4-nss-dev libsasl2-dev libsasl2-modules maven libapr1-dev libsvn-dev zlib1g-dev"
+  #  mesosslave.vm.provision :shell, inline: "cd mesos-1.1.0"
+  #  mesosslave.vm.provision :shell, inline: "sudo mkdir build"
+  #  mesosslave.vm.provision :shell, inline: "sudo cd build"
+  #  mesosslave.vm.provision :shell, inline: "sudo ../configure"
+  #  mesosslave.vm.provision :shell, inline: "sudo make"    
+  #end
+
+
+
+end

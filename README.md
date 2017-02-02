@@ -103,9 +103,25 @@ after a very long running process you can enter the systems locally:
 * Regular user => Email: user / Password: pass
 * UI can be found under https://console.local.pcfdev.io or https://uaa.local.pcfdev.io/login
  
-### local mesos (cluster)
+### local mesos with zookeeper, docker and marathon
  
+option 1 (tested):
+
 a standalone version can be created by:
+
+    $ cd mesos
+    $ vagrant up
+    $ vagrant reload
+
+URLs are:
+
+* Mesos web UI on: http://127.0.0.1:5050
+* Marathon web UI on: http://127.0.0.1:8080
+* check this page to see how to make a test deployment: https://blog.couchbase.com/2016/may/docker-apache-mesos-marathon
+
+option 2 (not tested):
+
+use this scripts for a standalone version:
 
     $ git clone https://github.com/everpeace/vagrant-mesos.git
     $ cd vagrant-mesos/standalone
@@ -420,6 +436,172 @@ Let's do an update without downtime (this plugin might not work on windows)
 ## Let's run it on kubernetes
 
 > TODO not implemented yet
+
+Let's start setting up a redis cluster, see https://github.com/kubernetes/kubernetes/tree/master/examples/storage/redis
+I assume you start in you kubernetes-test-vm.
+
+Let's create an isnatnce of a redis db and a sentinel for master selection
+
+    $ wget https://github.com/kubernetes/kubernetes/raw/master/examples/storage/redis/redis-controller.yaml
+    $ wget https://github.com/kubernetes/kubernetes/raw/master/examples/storage/redis/redis-master.yaml
+    $ wget https://github.com/kubernetes/kubernetes/raw/master/examples/storage/redis/redis-proxy.yaml
+    $ wget https://github.com/kubernetes/kubernetes/raw/master/examples/storage/redis/redis-sentinel-controller.yaml
+    $ wget https://github.com/kubernetes/kubernetes/raw/master/examples/storage/redis/redis-sentinel-service.yaml
+    $ kubectl create -f redis-master.yaml
+    $ kubectl create -f redis-sentinel-service.yaml
+
+let's scale the pods
+
+    $ kubectl create -f redis-controller.yaml
+    $ kubectl create -f redis-sentinel-controller.yaml
+    $ kubectl scale rc redis --replicas=3
+    $ kubectl scale rc redis-sentinel --replicas=3
+
+let's delete the inital manual created instances, redis will recreate them automatically
+
+    $ kubectl delete pods redis-master
+
+Pods can be used to host vertically integrated application stacks (e.g. LAMP). All components of one pod on the same
+host. Service can reach services in the same pod, but containers outside of pos can only be reached if they are exported by a 
+service. Kubernetes Pods are mortal. They are born and when they die, they are not resurrected. ReplicationControllers in particular create and destroy Pods dynamically. Each Pod gets its own IP address, even those IP addresses cannot be relied upon to be stable over time. A Kubernetes Service is an abstraction which defines a logical set of Pods and a policy by which to access them - sometimes called a micro-service
+
+So let's now create services and replication sets for the weather service, the concerts-service and the chat service.
+Then we have the full flexibility to scale.
+In order to make it easy I uploaded the software packages already as docker container.
+
+> TODO not yet implemented
+
+weather-replication-controller.yaml
+
+    apiVersion: v1
+    kind: ReplicationController
+    metadata:
+      name: weather-rc
+    spec:
+      replicas: 2
+      selector:
+        name: weather-rc
+      template:
+        metadata:
+          labels:
+            name: weather-rc
+        spec:
+          containers:
+          - name: weather-container
+            image: gcr.io/google_containers/weather:v1
+            ports:
+            - containerPort: 6379
+            resources:
+              limits:
+                cpu: "0.5"
+
+weather-service.yaml
+
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        name: weather-service
+        role: service
+      name: weather-rc
+    spec:
+      ports:
+        - port: 80
+          targetPort: 8090
+      selector:
+        weather-rc: "true"
+
+
+concerts-replication-controller.yaml
+
+    apiVersion: v1
+    kind: ReplicationController
+    metadata:
+      name: concerts-rc
+    spec:
+      replicas: 2
+      selector:
+        name: concerts-rc
+      template:
+        metadata:
+          labels:
+            name: concerts-rc
+        spec:
+          containers:
+          - name: concerts-container
+            image: gcr.io/google_containers/concerts:v1
+            ports:
+            - containerPort: 6379
+            resources:
+              limits:
+                cpu: "0.5"
+
+concerts-service.yaml
+
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        name: concerts-service
+        role: service
+      name: concerts-rc
+    spec:
+      ports:
+        - port: 80
+          targetPort: 8100
+      selector:
+        concerts-rc: "true"
+
+chat-replication-controller.yaml
+
+    apiVersion: v1
+    kind: ReplicationController
+    metadata:
+      name: chat-rc
+    spec:
+      replicas: 2
+      selector:
+        name: chat-rc
+      template:
+        metadata:
+          labels:
+            name: chat-rc
+        spec:
+          containers:
+          - name: chat-container
+            image: gcr.io/google_containers/chat:v1
+            ports:
+            - containerPort: 6379
+            resources:
+              limits:
+                cpu: "0.5"
+
+chat-service.yaml
+
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        name: chat-service
+        role: service
+      name: chat-rc
+    spec:
+      ports:
+        - port: 80
+          targetPort: 8080
+      selector:
+        chat-rc: "true"
+
+let's go
+
+    $ kubectl create -f weather-controller.yaml
+    $ kubectl create -f weather-service.yaml
+    $ kubectl create -f concerts-controller.yaml
+    $ kubectl create -f concerts-service.yaml
+    $ kubectl create -f chat-controller.yaml
+    $ kubectl create -f chat-service.yaml
+    // let's scale the weather server
+    $ kubectl scale rc weather --replicas=3
 
 ---
 
